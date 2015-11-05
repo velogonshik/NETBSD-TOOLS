@@ -1,0 +1,98 @@
+#!/bin/sh
+
+#	Sergey Ryabinin
+#	dev@brigar.ru
+#	11:22/22.10.2015
+#
+
+param='-t null  -r'
+CHROOT='/usr/chroot'
+
+if [ "$1" = "c" ]; then
+for i in \
+/bin \
+/sbin \
+/usr/bin \
+/usr/sbin \
+/usr/libexec \
+/usr/share \
+/usr/include \
+/usr/pkg/bin \
+/usr/lib \
+/usr/pkgsrc \
+/lib \
+/etc \
+/dev \
+/var/db/pkg \
+/usr/pkg \
+/tmp \
+/libexec \
+; do mkdir -p $CHROOT/$i; done
+
+
+mount $param /bin $CHROOT/bin
+mount $param /sbin $CHROOT/sbin
+mount $param /usr/bin $CHROOT/usr/bin
+mount $param /usr/lib $CHROOT/usr/lib
+mount $param /lib $CHROOT/lib
+mount $param /usr/sbin $CHROOT/usr/sbin
+mount $param /usr/pkgsrc $CHROOT/usr/pkgsrc
+mount $param /usr/libexec $CHROOT/usr/libexec
+mount $param /libexec $CHROOT/libexec
+mount $param /usr/share $CHROOT/usr/share
+mount $param /usr/include $CHROOT/usr/include
+
+#cp /dev/MAKEDEV $CHROOT/dev/
+#cd $CHROOT/dev
+#sh MAKEDEV all
+
+mknod $CHROOT/dev/null c 2 2
+mknod $CHROOT/dev/random c 39 0
+chmod 666 $CHROOT/dev/null
+chmod 444 $CHROOT/dev/random
+
+mknod $CHROOT/dev/stdin c 22 0
+mknod $CHROOT/dev/stdout c 22 1
+mknod $CHROOT/dev/stderr c 22 2
+
+cp /etc/hosts $CHROOT/etc/
+cp /etc/resolv.conf $CHROOT/etc/
+cp /etc/mk.conf $CHROOT/etc/
+cp /etc/shells $CHROOT/etc/
+cp /etc/services $CHROOT/etc/
+cp /etc/ssh/ssh_known_hosts $CHROOT/etc/ssh
+ln -sf /usr/share/zoneinfo/UTC $CHROOT/etc/localtime
+grep /etc/master.passwd -e "^root" -e "^nobody" > $CHROOT/etc/master.passwd
+grep /etc/group -e "^wheel" > $CHROOT/etc/group
+pwd_mkdb -p -d $CHROOT $CHROOT/etc/master.passwd
+echo '#!/bin/sh
+
+PATH=$HOME/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/X11R7/bin:/usr/X11R6/bin:/usr/pkg/bin
+PATH=${PATH}:/usr/pkg/sbin:/usr/games:/usr/local/bin:/usr/local/sbin
+PKG_PATH="http://ftp.NetBSD.org/pub/pkgsrc/packages/$(uname -s)/$(uname -m)/$(uname -r|cut -f "1 2" -d.)/All/"
+export PATH
+export PKG_PATH; pkg_add $1 
+
+'>$CHROOT/usr/pkg/bin/pkg
+chmod 700 $CHROOT/usr/pkg/bin/pkg
+chroot $CHROOT
+
+fi
+
+
+if [ "$1" = "u" ]; then
+for i in \
+/bin \
+/sbin \
+/usr/bin \
+/usr/sbin \
+/lib \
+/usr/lib \
+/usr/pkgsrc \
+/usr/libexec \
+/libexec \
+/usr/share \
+/usr/include \
+; do umount $CHROOT/$i; done
+rm -rf umount $CHROOT/*
+fi
