@@ -1,0 +1,152 @@
+#!/bin/sh
+
+
+
+#       This Script
+#       Author: Sergey Ryabinin
+#       Email:  dev@brigar.ru
+
+NAME_DAEMON='vgen'
+
+if [ $USER != 'root' ]; then
+echo "
+Please use root access
+"
+exit 0
+fi
+
+if [ -f /usr/pkg/bin/$NAME_DAEMON ]; then
+INSTALL_ST='OK'
+else
+INSTALL_ST='NO'
+fi
+
+if [ $(ls /dev/veriexec | wc -l) = 1 ]; then
+echo "
+veriexec ok
+"
+else
+echo "
+Create /dev/veriexec
+"
+cd /dev && sh ./MAKEDEV veriexec
+fi
+
+GEN_HAND(){
+if [ $(cat /etc/signatures | grep "$1" | grep -v grep | wc -l) -eq 0 ]; then
+openssl dgst -sha256 $1
+echo "$1 SHA256 `openssl dgst -sha256 $1 | awk '{print \$2}'`" >>/etc/signatures
+veriexecctl -e load /etc/signatures
+else
+echo "
+    Oops: $1 already in /etc/signatures
+    "
+fi
+}
+
+
+GET_NO_ENTRY(){
+cat /var/log/messages | grep 'No entry' | sort -u | awk '{print $9}' | sed -e 's/\[//;s/\]//;s/(mmap)//' | sort -u >$1
+}
+
+TAIL_MISMATCH(){
+tail -f /var/log/messages | grep 'Mismatch'
+}
+
+
+
+AUTO_ALL(){
+if [ -f /etc/signatures ]; then
+rm -rf /etc/signatures
+fi
+
+veriexecgen -A -r -D
+veriexecgen -A -r -d /etc		-o /etc/signatures
+veriexecgen -A -r -d /rescue		-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/sbin	-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/bin	-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/etc	-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/include	-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/lib	-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/libexec	-o /etc/signatures
+veriexecgen -A -r -d /usr/share		-o /etc/signatures
+veriexecgen -A -r -d /usr/pkg/share	-o /etc/signatures
+veriexecctl -e load /etc/signatures
+}
+
+
+INSTALL(){
+if [ -d /usr/pkg/bin ]; then
+echo "
+Install $0 to /usr/pkg/bin/
+"
+cp $PWD/$0 /usr/pkg/bin/$NAME_DAEMON
+echo "
+Install complite
+run daemon name: $NAME_DAEMON
+"
+else
+echo "
+Not install
+Not found dir. /usr/pkg/bin
+Please: mkdir -p /usr/pkg/bin
+"
+fi
+}
+
+
+
+OPT="${1}"
+case ${OPT} in
+-i)
+INSTALL
+;;
+-t)
+TAIL_MISMATCH
+;;
+-a)
+AUTO_ALL
+;;
+-g) FILE="${2}"
+if [ $FILE ]; then
+GEN_HAND "$FILE"
+else
+echo "
+ Generte hand signatures, full path!
+    ${0} -g /etc/file
+"
+exit 0
+fi
+;;
+-l ) FILE="${2}"
+if [ $FILE ]; then
+GET_NO_ENTRY "$FILE"
+else
+echo "
+ Generate log No entrys
+    ${0} -l file
+    "
+exit 0
+fi
+;;
+*)
+echo "
+1) Install daemon
+    ${0} -i
+    Installed: $INSTALL_ST
+
+2) Generate auto signatures
+    ${0} -a
+
+3) Generte hand file signatures, full path!
+    ${0} -g /etc/file
+
+4) Generate log No entrys
+    ${0} -l file
+
+5) Tail Mismatch
+    ${0} -t
+"
+exit 1
+;;
+esac
