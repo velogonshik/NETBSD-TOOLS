@@ -9,6 +9,8 @@ param='-t null  -r'
 CHROOT='/usr/chroot'
 
 if [ "$1" = "c" ]; then
+
+
 for i in \
 /bin \
 /sbin \
@@ -94,5 +96,5 @@ for i in \
 /usr/share \
 /usr/include \
 ; do umount $CHROOT/$i; done
-rm -rf umount $CHROOT/*
+rm -rf $CHROOT/*
 fi
