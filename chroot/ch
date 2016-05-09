@@ -1,14 +1,29 @@
-#!/bin/sh
+#!/bin/ksh
 
-#	Sergey Ryabinin
-#	dev@brigar.ru
-#	11:22/22.10.2015
+#       Sergey Ryabinin
+#       dev@brigar.ru
+#       08:34/25.04.2016
 #
 
 param='-t null  -r'
-CHROOT='/usr/chroot'
 
-if [ "$1" = "c" ]; then
+FLAG_C=0
+FLAG_U=0
+FLAG_CU=0
+
+
+
+usage(){
+print "$0 -p /xxx -c
+-p /path_to_chroot
+-c	Create
+-u	Umount
+"
+}
+
+CHROOT_CREATE(){
+
+CHROOT=$1
 
 
 for i in \
@@ -26,6 +41,7 @@ for i in \
 /etc \
 /dev \
 /var/db/pkg \
+/var/tmp \
 /usr/pkg \
 /tmp \
 /libexec \
@@ -44,18 +60,17 @@ mount $param /libexec $CHROOT/libexec
 mount $param /usr/share $CHROOT/usr/share
 mount $param /usr/include $CHROOT/usr/include
 
-#cp /dev/MAKEDEV $CHROOT/dev/
-#cd $CHROOT/dev
-#sh MAKEDEV all
+cp /dev/MAKEDEV $CHROOT/dev/
+cd $CHROOT/dev
+sh MAKEDEV all
 
-mknod $CHROOT/dev/null c 2 2
-mknod $CHROOT/dev/random c 39 0
-chmod 666 $CHROOT/dev/null
-chmod 444 $CHROOT/dev/random
+#mknod -m 666 $CHROOT/dev/null c 2 2
+#mknod -m 444 $CHROOT/dev/random c 21 8
+#mknod -m 444 $CHROOT/dev/urandom c 21 9
 
-mknod $CHROOT/dev/stdin c 22 0
-mknod $CHROOT/dev/stdout c 22 1
-mknod $CHROOT/dev/stderr c 22 2
+#mknod $CHROOT/dev/stdin c 22 0
+#mknod $CHROOT/dev/stdout c 22 1
+#mknod $CHROOT/dev/stderr c 22 2
 
 cp /etc/hosts $CHROOT/etc/
 cp /etc/resolv.conf $CHROOT/etc/
@@ -67,22 +82,26 @@ ln -sf /usr/share/zoneinfo/UTC $CHROOT/etc/localtime
 grep /etc/master.passwd -e "^root" -e "^nobody" > $CHROOT/etc/master.passwd
 grep /etc/group -e "^wheel" > $CHROOT/etc/group
 pwd_mkdb -p -d $CHROOT $CHROOT/etc/master.passwd
+
 echo '#!/bin/sh
 
 PATH=$HOME/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/X11R7/bin:/usr/X11R6/bin:/usr/pkg/bin
 PATH=${PATH}:/usr/pkg/sbin:/usr/games:/usr/local/bin:/usr/local/sbin
 PKG_PATH="http://ftp.NetBSD.org/pub/pkgsrc/packages/$(uname -s)/$(uname -m)/$(uname -r|cut -f "1 2" -d.)/All/"
 export PATH
-export PKG_PATH; pkg_add $1 
+export PKG_PATH; pkg_add $1
 
 '>$CHROOT/usr/pkg/bin/pkg
 chmod 700 $CHROOT/usr/pkg/bin/pkg
-chroot $CHROOT
+#chroot $CHROOT
 
-fi
+}
 
 
-if [ "$1" = "u" ]; then
+CHROOT_UMOUNT(){
+
+CHROOT=$1
+
 for i in \
 /bin \
 /sbin \
@@ -96,5 +115,51 @@ for i in \
 /usr/share \
 /usr/include \
 ; do umount $CHROOT/$i; done
-rm -rf $CHROOT/*
+rm -rf $CHROOT
+}
+
+while getopts "p:uce" opt
+do
+    case $opt in
+	p) OPT=$OPTARG;;
+
+	c) FLAG_C=1;;
+
+	u) FLAG_U=1;;
+
+	e) FLAG_CH=1;;
+
+	h)
+	    usage;
+	    exit 1;
+	;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+
+ARGS_CHECK(){
+if [[ $1 != *(/[a-zA-Z0-9]*) ]]; then echo "Unknow path argument: $1";exit 1;fi
+}
+
+if [[ $FLAG_U != 1 ]] && [[ $FLAG_C != 1 ]]; then
+usage
+exit 1;
 fi
+
+if [ $FLAG_C == 1 ]; then
+ARGS_CHECK $OPT
+echo "Chroot [ create ] on path $OPT"
+CHROOT_CREATE $OPT
+if [ $FLAG_CH == 1 ]; then
+      chroot $OPT
+      fi
+    fi
+
+if [ $FLAG_U == 1 ]; then
+ARGS_CHECK $OPT
+echo "Chroot [ umount ] on path $OPT"
+    CHROOT_UMOUNT $OPT
+    fi
+
