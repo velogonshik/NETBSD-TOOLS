@@ -2,7 +2,7 @@
 
 #       Sergey Ryabinin
 #       dev@brigar.ru
-#       08:34/25.04.2016
+#       21:27/31.08.2016
 #
 
 param='-t null  -r'
@@ -18,13 +18,21 @@ print "$0 -p /xxx -c
 -p /path_to_chroot
 -c	Create
 -u	Umount
+
+Examples
+------------------------- >
+Create croot:
+./ch -c -e -p /chroot_dir
+
+Delete chroot:
+./ch -u -p /chroot_dir
+------------------------- >
 "
 }
 
 CHROOT_CREATE(){
 
 CHROOT=$1
-
 
 for i in \
 /bin \
@@ -45,8 +53,9 @@ for i in \
 /usr/pkg \
 /tmp \
 /libexec \
-; do mkdir -p $CHROOT/$i; done
-
+; do 
+mkdir -p $CHROOT/$i
+done
 
 mount $param /bin $CHROOT/bin
 mount $param /sbin $CHROOT/sbin
@@ -62,7 +71,8 @@ mount $param /usr/include $CHROOT/usr/include
 
 cp /dev/MAKEDEV $CHROOT/dev/
 cd $CHROOT/dev
-sh MAKEDEV all
+sh MAKEDEV std crypto veriexec
+#sh MAKEDEV all
 
 #mknod -m 666 $CHROOT/dev/null c 2 2
 #mknod -m 444 $CHROOT/dev/random c 21 8
